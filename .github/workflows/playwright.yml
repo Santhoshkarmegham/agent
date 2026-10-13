@@ -7,7 +7,7 @@ on:
       - main
       - master
     paths:
-      - '.github/workflows/ui-tests.yml'
+      - '.github/workflows/playwright.yml'
       - 'package.json'
       - 'package-lock.json'
       - 'playwright.config.ts'
@@ -15,7 +15,7 @@ on:
       - 'tsconfig.json'
   pull_request:
     paths:
-      - '.github/workflows/ui-tests.yml'
+      - '.github/workflows/playwright.yml'
       - 'package.json'
       - 'package-lock.json'
       - 'playwright.config.ts'
