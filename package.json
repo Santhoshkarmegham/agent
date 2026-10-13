@@ -4,11 +4,9 @@
   "description": "Playwright + TypeScript starter project",
   "scripts": {
     "test": "playwright test",
-    "test:api": "playwright test -c playwright.api.config.ts",
     "test:headed": "playwright test --headed",
-    "test:saucedemo": "playwright test tests/saucedemo-login.spec.ts",
+    "test:saucedemo": "playwright test tests/ui/saucedemo-login.spec.ts",
     "test:ui": "playwright test --ui",
-    "report:api": "playwright show-report playwright-report/api",
     "report": "playwright show-report"
   },
   "keywords": [],
