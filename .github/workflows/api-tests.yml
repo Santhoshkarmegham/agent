@@ -1,4 +1,4 @@
-name: Playwright Tests
+name: API Tests
 
 on:
   workflow_dispatch:
@@ -6,10 +6,24 @@ on:
     branches:
       - main
       - master
+    paths:
+      - '.github/workflows/api-tests.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.api.config.ts'
+      - 'tests/api/**'
+      - 'tsconfig.json'
   pull_request:
+    paths:
+      - '.github/workflows/api-tests.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'playwright.api.config.ts'
+      - 'tests/api/**'
+      - 'tsconfig.json'
 
 jobs:
-  test:
+  api-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,17 +39,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
+      - name: Run API tests
+        run: npm run test:api
 
-      - name: Run Playwright tests
-        run: npm test
-
-      - name: Upload Playwright report
+      - name: Upload API report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-api-report
           path: |
             playwright-report/
             test-results/

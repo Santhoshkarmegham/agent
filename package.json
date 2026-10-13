@@ -3,10 +3,13 @@
   "version": "1.0.0",
   "description": "Playwright + TypeScript starter project",
   "scripts": {
-    "test": "playwright test",
+    "test": "npm run test:ui",
+    "test:all": "playwright test -c playwright.config.ts && playwright test -c playwright.api.config.ts",
+    "test:api": "playwright test -c playwright.api.config.ts",
     "test:headed": "playwright test --headed",
     "test:saucedemo": "playwright test tests/ui/saucedemo-login.spec.ts",
-    "test:ui": "playwright test --ui",
+    "test:ui": "playwright test -c playwright.config.ts",
+    "test:ui:debug": "playwright test -c playwright.config.ts --ui",
     "report": "playwright show-report"
   },
   "keywords": [],

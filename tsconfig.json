@@ -13,6 +13,7 @@
   },
   "include": [
     "playwright.config.ts",
+    "playwright.api.config.ts",
     "tests/**/*.ts"
   ]
 }
