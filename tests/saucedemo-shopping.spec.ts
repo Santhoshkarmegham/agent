@@ -19,9 +19,15 @@ test.describe('SauceDemo shopping flow', () => {
   test('adds a backpack to the cart and shows the cart badge', async ({ page }) => {
     await login(page);
 
-    await page.getByRole('button', { name: 'Add to cart' }).first().click();
+    const backpackItem = page.locator('[data-test="inventory-item"]').filter({
+      has: page.getByText('Sauce Labs Backpack'),
+    });
+
+    await backpackItem.getByRole('button', { name: 'Add to cart' }).click();
 
     await expect(page.locator('[data-test="shopping-cart-badge"]')).toHaveText('1');
+    await page.locator('[data-test="shopping-cart-link"]').click();
+    await expect(page.locator('[data-test="inventory-item-name"]')).toHaveText(['Sauce Labs Backpack']);
   });
 
   test('sorts products by price low to high', async ({ page }) => {
@@ -31,8 +37,9 @@ test.describe('SauceDemo shopping flow', () => {
 
     const prices = await page.locator('[data-test="inventory-item-price"]').allTextContents();
     const numericPrices = prices.map((price) => Number(price.replace('$', '')));
+    const sortedPrices = [...numericPrices].sort((first, second) => first - second);
 
-    expect(numericPrices[0]).toBeLessThanOrEqual(numericPrices[numericPrices.length - 1]);
+    expect(numericPrices).toEqual(sortedPrices);
     await expect(page.locator('[data-test="inventory-item-name"]').first()).toHaveText('Sauce Labs Onesie');
   });
 
@@ -43,6 +50,10 @@ test.describe('SauceDemo shopping flow', () => {
     await expect(page.locator('#logout_sidebar_link')).toBeVisible();
     await page.locator('#logout_sidebar_link').click();
 
+    await expect(page).toHaveURL(baseUrl);
+    await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
+
+    await page.goto(`${baseUrl}inventory.html`);
     await expect(page).toHaveURL(baseUrl);
     await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
   });
