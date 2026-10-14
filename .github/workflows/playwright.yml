@@ -52,13 +52,13 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload hosted ForgeQE report
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: report-site
 
   deploy-report:
-    if: always()
+    if: always() && github.event_name != 'pull_request'
     needs: test
     runs-on: ubuntu-latest
     environment:
