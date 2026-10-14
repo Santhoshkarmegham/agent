@@ -1,5 +1,10 @@
 name: Playwright Tests
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 on:
   workflow_dispatch:
   push:
@@ -33,7 +38,7 @@ jobs:
 
       - name: Generate ForgeQE HTML summary
         if: always()
-        run: node scripts/generate-forgeqe-html-report.mjs
+        run: node scripts/generate-forgeqe-html-report.mjs --results playwright-report/results.json --output report-site/index.html --title "ForgeQE UI pipeline report"
 
       - name: Upload Playwright report
         if: always()
@@ -45,3 +50,31 @@ jobs:
             playwright-report/
             test-results/
           if-no-files-found: ignore
+
+      - name: Upload hosted ForgeQE report
+        if: always()
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: report-site
+
+  deploy-report:
+    if: always()
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy ForgeQE report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Add report link to summary
+        run: |
+          {
+            echo "## ForgeQE UI HTML report"
+            echo ""
+            echo "- [Open single-file report](${{ steps.deployment.outputs.page_url }})"
+            echo "- [Open workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -10,7 +10,11 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 2 : undefined,
-  reporter: [['html', { open: 'never', outputFolder: 'playwright-report/api' }], ['list']],
+  reporter: [
+    ['html', { open: 'never', outputFolder: 'playwright-report/api' }],
+    ['json', { outputFile: 'playwright-report/api/results.json' }],
+    ['list'],
+  ],
   use: {
     baseURL: 'https://jsonplaceholder.typicode.com',
     extraHTTPHeaders: {

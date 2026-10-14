@@ -1,8 +1,20 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
-const resultsPath = 'playwright-report/results.json';
-const outputPath = 'playwright-report/forgeqe-report.html';
+const args = process.argv.slice(2);
+
+function readArg(name, fallback) {
+  const index = args.indexOf(`--${name}`);
+  if (index === -1 || index === args.length - 1) {
+    return fallback;
+  }
+
+  return args[index + 1];
+}
+
+const resultsPath = readArg('results', 'playwright-report/results.json');
+const outputPath = readArg('output', 'playwright-report/forgeqe-report.html');
+const reportTitle = readArg('title', 'ForgeQE pipeline report');
 
 function escapeHtml(value) {
   return String(value)
@@ -102,7 +114,7 @@ if (!existsSync(resultsPath)) {
   </head>
   <body>
     <div class="card">
-      <h1>ForgeQE pipeline report</h1>
+      <h1>${escapeHtml(reportTitle)}</h1>
       <p class="warn">Playwright results JSON was not found, so the standalone summary could not be built.</p>
       ${runUrl ? `<p>Workflow run: <a href="${escapeHtml(runUrl)}">${escapeHtml(runUrl)}</a></p>` : ''}
     </div>
@@ -130,7 +142,7 @@ const html = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ForgeQE pipeline report</title>
+    <title>${escapeHtml(reportTitle)}</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 2rem; color: #111827; background: #f9fafb; }
       .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
@@ -151,7 +163,7 @@ const html = `<!doctype html>
   </head>
   <body>
     <div class="card">
-      <h1>ForgeQE pipeline report</h1>
+      <h1>${escapeHtml(reportTitle)}</h1>
       <p>This is the single-file HTML summary for the Playwright pipeline run.</p>
       <div class="stats">
         <div class="stat"><div class="label">Total</div><div class="value">${summary.total}</div></div>
@@ -165,7 +177,6 @@ const html = `<!doctype html>
     <div class="card">
       <h2>Links</h2>
       <ul>
-        <li><a href="index.html">Open the full Playwright HTML report</a></li>
         ${runUrl ? `<li><a href="${escapeHtml(runUrl)}">Open the GitHub Actions run</a></li>` : ''}
       </ul>
     </div>
