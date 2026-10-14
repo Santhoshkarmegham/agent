@@ -1,5 +1,10 @@
 name: API Tests
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 on:
   workflow_dispatch:
   push:
@@ -40,12 +45,45 @@ jobs:
       - name: Run API tests
         run: npm run test:api
 
+      - name: Generate ForgeQE HTML summary
+        if: always()
+        run: node scripts/generate-forgeqe-html-report.mjs --results playwright-report/api/results.json --output report-site/index.html --title "ForgeQE API pipeline report"
+
       - name: Upload API test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-api-report
           path: |
+            report-site/index.html
             playwright-report/api/
             test-results/
           if-no-files-found: ignore
+
+      - name: Upload hosted ForgeQE API report
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: report-site
+
+  deploy-report:
+    if: always() && github.event_name != 'pull_request'
+    needs: api-test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy ForgeQE API report to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Add report link to summary
+        run: |
+          {
+            echo "## ForgeQE API HTML report"
+            echo ""
+            echo "- [Open single-file report](${{ steps.deployment.outputs.page_url }})"
+            echo "- [Open workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})"
+          } >> "$GITHUB_STEP_SUMMARY"
