@@ -6,6 +6,8 @@
     "test": "playwright test",
     "test:headed": "playwright test --headed",
     "test:saucedemo": "playwright test tests/saucedemo-login.spec.ts",
+    "test:saucedemo:shopping": "playwright test tests/saucedemo-shopping.spec.ts",
+    "test:saucedemo:all": "playwright test tests/saucedemo-*.spec.ts",
     "test:ui": "playwright test --ui",
     "report": "playwright show-report"
   },
