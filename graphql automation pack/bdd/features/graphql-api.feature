@@ -59,3 +59,8 @@ Feature: Rick and Morty GraphQL API automation
   Scenario: E2E: Fragment comparison validation
     When I run the fragment comparison workflow
     Then the workflow summary "fragmentWorkflow" reports at least 2 verified checks
+
+  @e2e-new @generated-e2e
+  Scenario: E2E: Cross-query data consistency
+    When I run the cross-query data consistency workflow
+    Then the workflow summary "crossQueryDataConsistency" reports at least 5 verified checks

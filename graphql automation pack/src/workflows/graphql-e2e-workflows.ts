@@ -29,10 +29,62 @@ type WorkflowSummary = {
   ids: Record<string, string | string[] | undefined>;
 };
 
-const getConnectionResults = (payload: any, key: string): any[] => {
+const getConnection = (payload: any, key: string): any => {
   const connection = payload?.[key];
   expectPaginationConnection(connection);
-  return connection.results;
+  return connection;
+};
+
+const getConnectionResults = (payload: any, key: string): any[] => {
+  return getConnection(payload, key).results;
+};
+
+const findCharacterByPredicate = async (
+  client: GraphQLClient,
+  predicate: (character: any) => boolean
+): Promise<any | undefined> => {
+  let page = 1;
+
+  while (true) {
+    const response = await client.execute('CharactersRelationshipScan', CHARACTERS_RELATION_SCAN_QUERY, { page });
+    expectGraphQLSuccess(response);
+    const connection = getConnection(response.body.data, 'characters');
+    const match = connection.results.find(predicate);
+
+    if (match) {
+      return match;
+    }
+
+    if (!connection.info?.next) {
+      return undefined;
+    }
+
+    page = connection.info.next;
+  }
+};
+
+const findLocationByPredicate = async (
+  client: GraphQLClient,
+  predicate: (location: any) => boolean
+): Promise<any | undefined> => {
+  let page = 1;
+
+  while (true) {
+    const response = await client.execute('LocationsRelationshipScan', LOCATIONS_QUERY, { page });
+    expectGraphQLSuccess(response);
+    const connection = getConnection(response.body.data, 'locations');
+    const match = connection.results.find(predicate);
+
+    if (match) {
+      return match;
+    }
+
+    if (!connection.info?.next) {
+      return undefined;
+    }
+
+    page = connection.info.next;
+  }
 };
 
 const getFirstDynamicCharacter = async (client: GraphQLClient): Promise<any> => {
@@ -84,11 +136,7 @@ export const runCharacterEpisodeConsistencyWorkflow = async (client: GraphQLClie
 };
 
 export const runLocationResidentConsistencyWorkflow = async (client: GraphQLClient): Promise<WorkflowSummary> => {
-  const locations = await client.execute('LocationsForResidentConsistency', LOCATIONS_QUERY, { page: 1 });
-  expectGraphQLSuccess(locations);
-  const locationResults = getConnectionResults(locations.body.data, 'locations');
-
-  const locationWithResidents = locationResults.find((location: any) => location.residents.length > 0);
+  const locationWithResidents = await findLocationByPredicate(client, (location) => location.residents.length > 0);
   expect(locationWithResidents).toBeTruthy();
 
   const residentIds = locationWithResidents.residents.slice(0, 3).map((resident: any) => resident.id);
@@ -105,7 +153,10 @@ export const runLocationResidentConsistencyWorkflow = async (client: GraphQLClie
     verifiedChecks += 2;
   }
 
-  const emptyLocationSeed = locationResults.find((location: any) => location.residents.length === 0);
+  const emptyLocationSeed = await findLocationByPredicate(
+    client,
+    (location) => location.id !== locationWithResidents.id && location.residents.length === 0
+  );
   const notes: string[] = [];
 
   if (emptyLocationSeed) {
@@ -169,12 +220,8 @@ export const runAliasMultiQueryWorkflow = async (client: GraphQLClient): Promise
 };
 
 export const runCrossResourceRelationshipWorkflow = async (client: GraphQLClient): Promise<WorkflowSummary> => {
-  const relationScan = await client.execute('CharactersRelationScan', CHARACTERS_RELATION_SCAN_QUERY, { page: 1 });
-  expectGraphQLSuccess(relationScan);
-  const relationResults = getConnectionResults(relationScan.body.data, 'characters');
-  expect(relationResults.length).toBeGreaterThan(0);
-
-  const primaryCharacter = await getCharacterDetails(client, relationResults[0].id);
+  const primaryCharacterSeed = await getFirstDynamicCharacter(client);
+  const primaryCharacter = await getCharacterDetails(client, primaryCharacterSeed.id);
   const notes: string[] = [];
   let verifiedChecks = 0;
 
@@ -192,7 +239,7 @@ export const runCrossResourceRelationshipWorkflow = async (client: GraphQLClient
     verifiedChecks += 1;
   }
 
-  const optionalCandidate = relationResults.find((character: any) => !character.origin?.id || !character.location?.id);
+  const optionalCandidate = await findCharacterByPredicate(client, (character) => !character.origin?.id || !character.location?.id);
   if (optionalCandidate) {
     const optionalCharacter = await getCharacterDetails(client, optionalCandidate.id);
     expect(!optionalCharacter.origin?.id || !optionalCharacter.location?.id).toBeTruthy();
@@ -238,5 +285,54 @@ export const runFragmentWorkflow = async (client: GraphQLClient): Promise<Workfl
     verifiedChecks: 2,
     notes: ['Verified fragment-based queries return the same response structure as the baseline query.'],
     ids: variables,
+  };
+};
+
+export const runCrossQueryDataConsistencyWorkflow = async (client: GraphQLClient): Promise<WorkflowSummary> => {
+  const characterSeed = await getFirstDynamicCharacter(client);
+  const character = await getCharacterDetails(client, characterSeed.id);
+  const notes: string[] = [];
+  let verifiedChecks = 0;
+
+  expectSubsetMatch(character, characterSeed, ['id', 'name', 'status', 'species']);
+  verifiedChecks += 1;
+
+  let locationId: string | undefined;
+  if (character.location?.id) {
+    locationId = character.location.id;
+    const locationResponse = await client.execute('CrossQueryLocationConsistency', LOCATION_QUERY, { id: locationId });
+    expectGraphQLSuccess(locationResponse);
+    expectSubsetMatch(locationResponse.body.data?.location, character.location, ['id', 'name', 'type', 'dimension']);
+    verifiedChecks += 1;
+  } else {
+    notes.push('Selected character did not expose a current location id, so location detail comparison was skipped.');
+  }
+
+  const episodeSeed = character.episode?.[0];
+  let episodeId: string | undefined;
+  if (episodeSeed?.id) {
+    episodeId = episodeSeed.id;
+    const episodeResponse = await client.execute('CrossQueryEpisodeConsistency', EPISODE_QUERY, { id: episodeId });
+    expectGraphQLSuccess(episodeResponse);
+    const episode = episodeResponse.body.data?.episode as any;
+
+    expectSubsetMatch(episode, episodeSeed, ['id', 'name', 'episode', 'air_date']);
+    expect(episode.characters.map((entry: any) => entry.id)).toContain(character.id);
+    const episodeCharacter = episode.characters.find((entry: any) => entry.id === character.id);
+    expectSubsetMatch(episodeCharacter, character, ['id', 'name', 'status']);
+    verifiedChecks += 3;
+  } else {
+    notes.push('Selected character did not expose a nested episode id, so episode consistency checks were skipped.');
+  }
+
+  return {
+    workflow: 'crossQueryDataConsistency',
+    verifiedChecks,
+    notes,
+    ids: {
+      characterId: character.id,
+      locationId,
+      episodeId,
+    },
   };
 };

@@ -26,6 +26,7 @@ import {
 import {
   runAliasMultiQueryWorkflow,
   runCharacterEpisodeConsistencyWorkflow,
+  runCrossQueryDataConsistencyWorkflow,
   runCrossResourceRelationshipWorkflow,
   runFragmentWorkflow,
   runLocationResidentConsistencyWorkflow,
@@ -94,6 +95,10 @@ When('I run the cross-resource relationship workflow', async function (this: Gra
 
 When('I run the fragment comparison workflow', async function (this: GraphQLWorld) {
   this.workflowSummaries.fragmentWorkflow = await runFragmentWorkflow(this.client);
+});
+
+When('I run the cross-query data consistency workflow', async function (this: GraphQLWorld) {
+  this.workflowSummaries.crossQueryDataConsistency = await runCrossQueryDataConsistencyWorkflow(this.client);
 });
 
 Then('the latest GraphQL response is successful', function (this: GraphQLWorld) {

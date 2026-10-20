@@ -1,0 +1,169 @@
+name: GraphQL Automation Pack
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/graphql-pack.yml'
+      - 'graphql automation pack/**'
+  pull_request:
+    paths:
+      - '.github/workflows/graphql-pack.yml'
+      - 'graphql automation pack/**'
+
+jobs:
+  graphql-pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: graphql automation pack
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: graphql automation pack/package-lock.json
+
+      - name: Setup Java for Allure CLI
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Allure CLI
+        run: npm install --global allure-commandline
+
+      - name: Prepare run folders
+        run: npm run prepare:run
+
+      - name: Discover GraphQL schema inventory
+        id: discover
+        continue-on-error: true
+        run: npm run discover
+
+      - name: Run GraphQL non-BDD tests
+        id: nonbdd
+        continue-on-error: true
+        run: npm run test:nonbdd
+
+      - name: Run GraphQL BDD tests
+        id: bdd
+        continue-on-error: true
+        run: npm run test:bdd
+
+      - name: Generate Allure report
+        if: always()
+        run: npm run report:allure
+
+      - name: Generate custom reports
+        if: always()
+        run: npm run report:custom
+
+      - name: Upload single-file HTML report
+        if: always()
+        id: single_html_report
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphql-single-html-report
+          path: graphql automation pack/custom-report/graphql-execution-report.html
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Allure HTML bundle
+        if: always()
+        id: allure_html_report
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphql-allure-html-report
+          path: |
+            graphql automation pack/allure-report/
+            graphql automation pack/artifacts/allure-results-merged/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload GraphQL raw results
+        if: always()
+        id: raw_results
+        uses: actions/upload-artifact@v4
+        with:
+          name: graphql-raw-results
+          path: |
+            graphql automation pack/custom-report/
+            graphql automation pack/test-results/
+            graphql automation pack/bdd-results/
+            graphql automation pack/allure-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Add GraphQL test summary
+        if: always()
+        env:
+          DISCOVER_OUTCOME: ${{ steps.discover.outcome }}
+          NONBDD_OUTCOME: ${{ steps.nonbdd.outcome }}
+          BDD_OUTCOME: ${{ steps.bdd.outcome }}
+          SINGLE_HTML_ARTIFACT_URL: ${{ steps.single_html_report.outputs.artifact-url }}
+          ALLURE_HTML_ARTIFACT_URL: ${{ steps.allure_html_report.outputs.artifact-url }}
+          RAW_RESULTS_ARTIFACT_URL: ${{ steps.raw_results.outputs.artifact-url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const reportPath = path.resolve(process.cwd(), 'custom-report/graphql-execution-report.json');
+          const report = fs.existsSync(reportPath)
+            ? JSON.parse(fs.readFileSync(reportPath, 'utf8'))
+            : null;
+
+          const summary = [
+            '## GraphQL automation pack summary',
+            '',
+            `- Discover step: **${process.env.DISCOVER_OUTCOME || 'unknown'}**`,
+            `- Non-BDD tests: **${process.env.NONBDD_OUTCOME || 'unknown'}**`,
+            `- BDD tests: **${process.env.BDD_OUTCOME || 'unknown'}**`,
+          ];
+
+          if (report) {
+            summary.push(
+              '',
+              '| Suite | Passed | Failed | Skipped | Total |',
+              '| --- | ---: | ---: | ---: | ---: |',
+              `| Non-BDD | ${report.nonBdd.passed} | ${report.nonBdd.failed} | ${report.nonBdd.skipped} | ${report.nonBdd.total} |`,
+              `| BDD | ${report.bdd.passed} | ${report.bdd.failed} | ${report.bdd.skipped} | ${report.bdd.total} |`,
+              `| Consolidated E2E | ${report.consolidatedE2E.passed} | ${report.consolidatedE2E.failed} | ${report.consolidatedE2E.skipped} | ${report.consolidatedE2E.total} |`
+            );
+          } else {
+            summary.push('', '- Report JSON was not generated.');
+          }
+
+          summary.push(
+            '',
+            '### Downloads',
+            '',
+            `- [Download single-file HTML report](${process.env.SINGLE_HTML_ARTIFACT_URL})`,
+            `- [Download Allure HTML bundle](${process.env.ALLURE_HTML_ARTIFACT_URL})`,
+            `- [Download raw results bundle](${process.env.RAW_RESULTS_ARTIFACT_URL})`,
+            `- [Open workflow run](${process.env.RUN_URL})`
+          );
+
+          fs.appendFileSync(summaryPath, `${summary.join('\n')}\n`);
+          NODE
+
+      - name: Fail workflow when GraphQL validation failed
+        if: always() && (steps.discover.outcome == 'failure' || steps.nonbdd.outcome == 'failure' || steps.bdd.outcome == 'failure')
+        run: |
+          echo "GraphQL workflow completed with failures. See the summary and artifacts above."
+          exit 1

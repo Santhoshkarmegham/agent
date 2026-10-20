@@ -27,6 +27,7 @@ import {
 import {
   runAliasMultiQueryWorkflow,
   runCharacterEpisodeConsistencyWorkflow,
+  runCrossQueryDataConsistencyWorkflow,
   runCrossResourceRelationshipWorkflow,
   runFragmentWorkflow,
   runLocationResidentConsistencyWorkflow,
@@ -118,7 +119,7 @@ test.describe('Rick and Morty GraphQL API', () => {
     const result = await graphql.execute('CharactersFiltered', CHARACTERS_QUERY, runtimeInputs.charactersFilter as Record<string, unknown>);
 
     expectGraphQLSuccess(result);
-    const characters = result.body.data?.characters?.results as any[];
+    const characters = (result.body.data as any)?.characters?.results as any[];
     expect(characters.length).toBeGreaterThan(0);
     characters.forEach((character) => {
       expect(character.name.toLowerCase()).toContain('rick');
@@ -173,7 +174,7 @@ test.describe('Rick and Morty GraphQL API', () => {
     const characters = await graphql.execute('CharactersForChain', CHARACTERS_QUERY, { page: 1 });
 
     expectGraphQLSuccess(characters);
-    const firstCharacter = characters.body.data?.characters?.results?.[0] as any;
+    const firstCharacter = (characters.body.data as any)?.characters?.results?.[0] as any;
     expectCharacter(firstCharacter);
 
     const characterDetails = await graphql.execute('CharacterForChain', CHARACTER_QUERY, { id: firstCharacter.id });
@@ -221,6 +222,13 @@ test.describe('Rick and Morty GraphQL API', () => {
     const summary = await runFragmentWorkflow(graphql);
 
     expect(summary.verifiedChecks).toBeGreaterThanOrEqual(2);
+    expect(summary.ids.characterId).toBeTruthy();
+  });
+
+  test('[E2E] cross-query-data-consistency-across-related-graphql-operations', async ({ graphql }) => {
+    const summary = await runCrossQueryDataConsistencyWorkflow(graphql);
+
+    expect(summary.verifiedChecks).toBeGreaterThanOrEqual(5);
     expect(summary.ids.characterId).toBeTruthy();
   });
 });
