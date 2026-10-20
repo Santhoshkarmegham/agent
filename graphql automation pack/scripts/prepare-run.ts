@@ -4,12 +4,13 @@ import path from 'node:path';
 const pathsToClean = [
   'artifacts/request-logs',
   'artifacts/discovery',
+  'artifacts/allure-results-merged',
   'bdd-results',
   'custom-report',
   'test-results',
   'playwright-report',
-  'allure-results/bdd',
-  'allure-results/non-bdd',
+  'allure-report',
+  'allure-results',
 ];
 
 for (const relativePath of pathsToClean) {

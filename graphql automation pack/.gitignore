@@ -3,6 +3,8 @@ playwright-report/
 test-results/
 bdd-results/
 allure-results/
+allure-report/
 custom-report/
 artifacts/request-logs/
 artifacts/discovery/
+artifacts/allure-results-merged/
