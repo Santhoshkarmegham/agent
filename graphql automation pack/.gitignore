@@ -1,0 +1,8 @@
+node_modules/
+playwright-report/
+test-results/
+bdd-results/
+allure-results/
+custom-report/
+artifacts/request-logs/
+artifacts/discovery/

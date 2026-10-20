@@ -1,0 +1,34 @@
+{
+  "characterId": "1",
+  "characterIds": [
+    "1",
+    "2",
+    "3"
+  ],
+  "charactersFilter": {
+    "page": 1,
+    "filter": {
+      "name": "rick",
+      "species": "human",
+      "status": "alive"
+    }
+  },
+  "locationRequest": {
+    "page": 1,
+    "filter": {
+      "name": "Citadel of Ricks"
+    }
+  },
+  "episodeRequest": {
+    "page": 1,
+    "filter": {
+      "name": "Pilot"
+    }
+  },
+  "nonexistentCharacterId": "999999",
+  "invalidVariableType": {
+    "id": {
+      "bad": "value"
+    }
+  }
+}

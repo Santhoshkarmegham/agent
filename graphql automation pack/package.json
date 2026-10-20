@@ -1,0 +1,26 @@
+{
+  "name": "graphql-automation-pack",
+  "version": "1.0.0",
+  "private": true,
+  "description": "GraphQL API automation pack for the Rick and Morty API using Playwright TypeScript and Cucumber",
+  "scripts": {
+    "prepare:run": "ts-node scripts/prepare-run.ts",
+    "discover": "ts-node scripts/discover-schema.ts",
+    "test": "npm run validate",
+    "test:nonbdd": "GRAPHQL_RUNNER=non-bdd playwright test",
+    "test:bdd": "mkdir -p bdd-results allure-results/bdd && GRAPHQL_RUNNER=bdd ALLURE_RESULTS_DIR=allure-results/bdd cucumber-js --require-module ts-node/register --require bdd/steps/**/*.ts --format progress --format json:bdd-results/cucumber-report.json --format allure-cucumberjs/reporter bdd/features/**/*.feature",
+    "test:all": "npm run prepare:run && npm run discover && npm run test:nonbdd && npm run test:bdd",
+    "report:custom": "ts-node scripts/generate-report.ts",
+    "report:playwright": "playwright show-report",
+    "validate": "npm run test:all && npm run report:custom"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.2.0",
+    "@playwright/test": "^1.64.0",
+    "@types/node": "^22.10.2",
+    "allure-cucumberjs": "^3.4.1",
+    "allure-playwright": "^3.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3"
+  }
+}
